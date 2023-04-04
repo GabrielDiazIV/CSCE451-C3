@@ -1,0 +1,15 @@
+#!/bin/env python
+
+def usage():
+    return """
+    USASAGE: pyrun [OPTIONS] COMMAND 
+
+    A way to quickly execute and test individual functions
+
+    COMMANDS
+        run         execute a given function with specific paramters
+        extract     from ghidra export decompiled functions into seperate files 
+    
+    OPTIONS
+        --help      learn more about a give command
+    """
