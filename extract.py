@@ -51,9 +51,66 @@ def getSubFunctionList(function, monitor):
         nameList.append(filename)
 
     return nameList
+def write_function(function, subFunctionFilenames, decomp_src, output_dir):
+    filename = f"{function.name}@{function.getEntryPoint()}.h"
+    path = os.path.join(output_dir, filename)
+    with open(path, "w") as f:
+        logging.debug(f"Saving to '{path}'")
 
+        # write includes first
+        for includeFilename in subFunctionFilenames:
+            f.write(f"#include \"{includeFilename}\"\n")
 
+        # write rest of file
+        f.write(decomp_src)
 
+def extract_lazy(function_address, output_dir):
+    logging.info("Extracting decompiled functions...")
+    decomp = ghidra.app.decompiler.DecompInterface()
+    decomp.openProgram(currentProgram)
+    entry_function = currentProgram.functionManager.getFunctionAt(function_address)
+
+    failed_to_extract = set()
+    count = 0
+    functions_seen = set()
+
+    def lazy_dfs(function):
+        if f"{function.name}@{function.getEntryPoint()}" in functions_seen or :
+            return
+
+        logging.debug(f"Decompiling {function.name}")
+        decomp_res = decomp.decompileFunction(function, TIMEOUT, monitor)
+
+        if decomp_res.isTimedOut():
+            logging.warning("Timed out while attempting to decompile '{function.name}'")
+        elif not decomp_res.decompileCompleted():
+            logging.error(f"Failed to decompile {function.name}")
+            logging.error("    Error: " + decomp_res.getErrorMessage())
+            failed_to_extract.append(function.name)
+            return
+
+        decomp_src = decomp_res.getDecompiledFunction().getC()
+
+        # get functions called by this function
+        subFunctionFilenames = getSubFunctionList(function, monitor)
+        try: 
+            write_function(function, subFunctionFilenames, decomp_src, output_dir)
+            functions_seen.add(f"{function.name}@{function.getEntryPoint()}")
+        except Exception as e:
+            logging.error(e)
+            failed_to_extract.append("{function.name}@{function.getEntryPoint()}" )
+            return
+
+        subFunctions = list(function.getCalledFunctions(monitor))
+        for subFunction in subFunctions:
+            lazy_dfs(subFunction)
+
+        
+        logging.info(f"Extracted {str(count)} out of {str(len(functions))} functions")
+        if failed_to_extract:
+            logging.warning("Failed to extract the following functions:\n\n  - " + "\n  - ".join(failed_to_extract))
+    
+    lazy_dfs(entry_function)
 
 
 def extract_decomps(output_dir):
@@ -63,7 +120,6 @@ def extract_decomps(output_dir):
     functions = list(currentProgram.functionManager.getFunctions(True))
     failed_to_extract = []
     count = 0
-    functions_seen = set()
 
     for function in functions:
         logging.debug(f"Decompiling {function.name}")
@@ -83,18 +139,7 @@ def extract_decomps(output_dir):
         subFunctionFilenames = getSubFunctionList(function, monitor)
 
         try:
-            filename = f"{function.name}@{function.getEntryPoint()}.h"
-            path = os.path.join(output_dir, filename)
-            with open(path, "w") as f:
-                logging.debug(f"Saving to '{path}'")
-
-                # write includes first
-                for includeFilename in subFunctionFilenames:
-                    f.write(f"#include \"{includeFilename}\"\n")
-
-                # write rest of file
-                f.write(decomp_src)
-                count += 1
+            write_function(function, subFunctionFilenames, decomp_src, output_dir)
         except Exception as e:
             logging.error(e)
             failed_to_extract.append(function.name)
