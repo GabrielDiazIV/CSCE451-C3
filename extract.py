@@ -97,7 +97,7 @@ def extract_lazy(entry_function, output_dir):
         elif not decomp_res.decompileCompleted():
             logging.error(f"Failed to decompile {function.name}")
             logging.error("    Error: " + decomp_res.getErrorMessage())
-            failed_to_extract.append(function.name)
+            failed_to_extract.add(function.name)
             return
 
         decomp_src = decomp_res.getDecompiledFunction().getC()
