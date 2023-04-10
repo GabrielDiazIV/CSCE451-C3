@@ -35,9 +35,9 @@ def create_output_dir(path):
     logging.info(f"Using '{path}' as output directory...")
 
     if os.path.isdir(path):
-        if os.listdir(path):
-            logging.error(f"{path} already contains files!")
-            exit()
+        # if os.listdir(path):
+        #     logging.error(f"{path} already contains files!")
+        #     exit()
         return path
     
     os.mkdir(path)
@@ -64,18 +64,29 @@ def write_function(function, subFunctionFilenames, decomp_src, output_dir):
         # write rest of file
         f.write(decomp_src)
 
-def extract_lazy(function_address, output_dir):
+def function_name_to_function(function_name):
+    decomp = ghidra.app.decompiler.DecompInterface()
+    decomp.openProgram(currentProgram)
+    functions = list(currentProgram.functionManager.getFunctions(True))
+
+    for function in functions:
+        if function_name == f"{function.name}@{function.getEntryPoint()}":
+            return function
+    
+    logging.error(f"Failed to find match for {function.name}")
+    return None
+
+def extract_lazy(entry_function, output_dir):
     logging.info("Extracting decompiled functions...")
     decomp = ghidra.app.decompiler.DecompInterface()
     decomp.openProgram(currentProgram)
-    entry_function = currentProgram.functionManager.getFunctionAt(function_address)
 
     failed_to_extract = set()
     count = 0
     functions_seen = set()
 
     def lazy_dfs(function):
-        if f"{function.name}@{function.getEntryPoint()}" in functions_seen or :
+        if f"{function.name}@{function.getEntryPoint()}" in functions_seen or f"{function.name}@{function.getEntryPoint()}" in failed_to_extract:
             return
 
         logging.debug(f"Decompiling {function.name}")
@@ -105,11 +116,12 @@ def extract_lazy(function_address, output_dir):
         for subFunction in subFunctions:
             lazy_dfs(subFunction)
 
-        
-        logging.info(f"Extracted {str(count)} out of {str(len(functions))} functions")
         if failed_to_extract:
             logging.warning("Failed to extract the following functions:\n\n  - " + "\n  - ".join(failed_to_extract))
-    
+        
+        count = len(functions_seen)
+        logging.info(f"Extracted {str(count)} out of {str(count + len(failed_to_extract))} functions")
+
     lazy_dfs(entry_function)
 
 
@@ -149,7 +161,7 @@ def extract_decomps(output_dir):
     if failed_to_extract:
         logging.warning("Failed to extract the following functions:\n\n  - " + "\n  - ".join(failed_to_extract))
 
-def main(output_dir=None):
+def main(output_dir=None, function_name=None):
     """Main function."""
     program_info = get_program_info()
 
@@ -158,7 +170,13 @@ def main(output_dir=None):
         output_dir = "examples/" + program_info["program_name"] + "_extraction"
     
     create_output_dir(output_dir)
-    extract_decomps(output_dir)
+
+    if function_name:
+        extract_lazy(function_name_to_function(function_name), output_dir)
+    else:
+        extract_decomps(output_dir) # Extract all
+
+
 
 
 if __name__ == "__main__":
@@ -166,12 +184,18 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", help="Set output directory (default is current directory + program name)")
     parser.add_argument("-v", "--verbose", action="count", help="Display verbose logging output")
     parser.add_argument("-t", "--timeout", type=int, help="Custom timeout for individual function decompilation (default = 1000)")
+    parser.add_argument("-f", "--function", type=str, help="The function name do be analyzed if one")
     args = parser.parse_args()
 
     if args.output:
         output_dir = args.output
     else:
         output_dir = None
+
+    if args.function:
+        function = args.function
+    else:
+        function = None
     
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -179,6 +203,6 @@ if __name__ == "__main__":
         logging.getLogger().setLevel(logging.INFO)
 
     if args.timeout:
-        TIMEOUT = args.timeout
- 
-    main(output_dir=output_dir)
+        TIMEOUT = args.TIMEOUT
+
+    main(output_dir=output_dir, function_name=function)
