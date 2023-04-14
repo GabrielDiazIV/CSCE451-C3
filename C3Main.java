@@ -6,6 +6,7 @@
 //@toolbar 
 
 import ghidra.app.script.GhidraScript;
+import ghidra.util.exception.CancelledException;
 import ghidra.program.model.mem.*;
 import ghidra.program.model.lang.*;
 import ghidra.program.model.pcode.*;
@@ -40,16 +41,21 @@ public class C3Main extends GhidraScript {
 			importFunctions();
 			choice = askChoice("Choose Export Type", "Do you want to export one function (and dependencies) or all?", Arrays.asList("All Functions", "One Function"), "All Functions");
 			if (choice.equals("All Functions")) {
-				runCommand(getPyrunScriptPath("extract.py"));
-				choice = askChoice("Choose Function", "Choose a function to run", new ArrayList<String>(functions.keySet()),null);
-				Function f = functions.get(choice);
-				runFunction(f);
+				do {
+					runCommand(getPyrunScriptPath("extract.py"));
+					choice = askChoice("Choose Function", "Choose a function to run", new ArrayList<String>(functions.keySet()),null);
+					Function f = functions.get(choice);
+					runFunction(f);
+				}
+				while (askYesNo("Continue?", "Do you want to continue running functions?"));
 			}
 			else if (choice.equals("One Function")) {
+			do {
 				choice = askChoice("Choose Function", "Choose a function to export", new ArrayList<String>(functions.keySet()),null);
 				runCommand(getPyrunScriptPath("extract.py") + " -f " + choice);
 				Function f = functions.get(choice);
 				runFunction(f);
+			} while (askYesNo("Continue?", "Do you want to export and run a new function?"));
 			}
 		}
 		else if (choice.equals("Assembly")) {
@@ -73,12 +79,17 @@ public class C3Main extends GhidraScript {
 	}
 
 	private void runFunction(Function f) {
-		String args = getPyrunScriptPath("runner.py") + " " + choice + " ";
-		for (Parameter p : f.getParameters()) {
-			String param = askString(choice + " Parameter Entry", "Enter a value for parameter " + p.getName() + " of type " + p.getFormalDataType().getDisplayName());
-			args += param + " ";
+		try {
+			String args = getPyrunScriptPath("runner.py") + " " + getPyrunFunctionName(f) + " ";
+			for (Parameter p : f.getParameters()) {
+				String param = askString(getPyrunFunctionName(f) + " Parameter Entry", "Enter a value for parameter " + p.getName() + " of type " + p.getFormalDataType().getDisplayName());
+				args += param + " ";
+			}
+			runCommand(args);
 		}
-		runCommand(args);
+		catch(CancelledException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private String getPyrunFunctionName(Function f) {
