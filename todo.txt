@@ -1,0 +1,17 @@
+Gabe & Nathan
+
+lazyalloc - working
+test on basic imports
+test on basic cout/cin statements
+
+
+
+
+General considerations
+    putting '' or "" around script input as necessary
+
+    where/how to run extracting scripts within ghidra
+
+    defining the boundaries of our tool
+
+    thorough readme on all steps

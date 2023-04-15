@@ -38,6 +38,10 @@ def get_program_info():
     
     return program_info
 
+def normalize_args(argv):
+    # TODO
+    pass
+
 def runner(executable_path):
 
     # Run the GCC command using subprocess
@@ -86,7 +90,6 @@ def compile(main_file):
         exit(1)
 
     return output_name
-    
 
 # filename arg must come in the format {function.name}@{function.getEntryPoint()}
 def main(): 
@@ -94,7 +97,8 @@ def main():
         print("No filename passed")
         return 1
         
-    main_file =  create_main(sys.argv[1], sys.argv[2:])
+    #args = normalize_args(sys.argv) 
+    main_file = create_main(sys.argv[1], sys.argv[2:])
     executable_path = compile(main_file)
     runner(executable_path)
 
