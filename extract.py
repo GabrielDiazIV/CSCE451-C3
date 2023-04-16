@@ -45,7 +45,7 @@ def matchregex(decomp_res, decomp_src, function):
 
     # Replace the matched text with the new text
     for match in cout_matches:
-        new_text = "std::cout << " + match[1]
+        new_text = "std::cout << " + match[1] + ";"
         decomp_src = decomp_src.replace(match[0], new_text)
 
         
