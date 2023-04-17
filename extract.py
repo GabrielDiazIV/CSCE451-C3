@@ -26,63 +26,18 @@ def get_program_info():
 
     return program_info
 
-#cin_pattern = r'(operator__.*\n*.*std::cin,(.*)\);)'
-cin_pattern = r'((std::basic_istream.*)?operator__.*\n*.*std::cin,(.*)\);)'
-
-cout_pattern = r'(std::operator__\(\(basic_ostream \*\)std::cout,(.*)\);)'
-
-endl_pattern = r'(std::basic_ostream.*::operator__\s*.*\s*\(_func_basic_ostream_ptr_basic_ostream_ptr \*\))'
-
-basic_string_pattern = r'(basic_string .*;)'
 def matchregex(decomp_res, decomp_src, function):
-    # Get the current program and its listing
-    
-    cout_matches = re.findall(cout_pattern, decomp_src)
 
-    if len(cout_matches) > 0:
-        print(function.name, len(cout_matches), " cout_matches")
-    # Print out the cout_matches
+    cout_pattern = r'(std::operator<<\(\(basic_ostream \*\)std::cout,(.*)\);)'
+    cout_matches = re.findall(cout_pattern, decomp_src)
 
     # Replace the matched text with the new text
     for match in cout_matches:
         new_text = "std::cout << " + match[1] + ";"
         decomp_src = decomp_src.replace(match[0], new_text)
 
-        
-    cin_matches = re.findall(cin_pattern, decomp_src)
+    # More regex simplifications will go here as we continue to research more ways to simplify Ghidra's outputs.
 
-    if len(cin_matches) > 0:
-        print(function.name, len(cin_matches), " cin_matches")
-    # Print out the cin_matches
-
-    # Replace the matched text with the new text
-    for match in cin_matches:
-        new_text = "std::cin >> " + match[-1]
-        decomp_src = decomp_src.replace(match[0], new_text)
-
-    if len(endl_matches) > 0:
-        endl_matches = re.findall(endl_pattern, decomp_src)
-
-    print(function.name, len(endl_matches), " endl_matches")
-    # Print out the endl_matches
-
-    # Replace the matched text with the new text
-    for match in basic_string_matches:
-        new_text = "std::cout << std::endl;"
-        decomp_src = decomp_src.replace(match[0], new_text)
-
-        basic_string_matches = re.findall(basic_string_pattern, decomp_src)
-
-    if len(basic_string_matches) > 0:
-        print(function.name, len(basic_string_matches), " basic_string_matches")
-    # Print out the basic_string_matches
-
-    # Replace the matched text with the new text
-    for match in basic_string_matches:
-        new_text = "std::string;"
-        decomp_src = decomp_src.replace(match[0], new_text)
-
-    # Update the decompiled results with the modified decomp_src
     return decomp_src
 
 def create_output_dir(path):
@@ -160,7 +115,8 @@ def extract_lazy(entry_function, output_dir):
             failed_to_extract.add(function.name)
             return
 
-        decomp_src = decomp_res.getDecompiledFunction().getC()
+        printer = ghidra.app.decompiler.PrettyPrinter(function, decomp_res.getCCodeMarkup())
+        decomp_src = printer.print(False).getC()
 
         # get functions called by this function
         subFunctionFilenames = getSubFunctionList(function, monitor)
@@ -204,14 +160,18 @@ def extract_decomps(output_dir):
             logging.error("    Error: " + decomp_res.getErrorMessage())
             failed_to_extract.add(function.name)
             continue
-    
-        decomp_src = decomp_res.getDecompiledFunction().getC()
+        
+
+
+        printer = ghidra.app.decompiler.PrettyPrinter(function, decomp_res.getCCodeMarkup())
+        decomp_src = printer.print(False).getC()
+        
 
         # get functions called by this function
         subFunctionFilenames = getSubFunctionList(function, monitor)
 
         try:
-            write_function(function, subFunctionFilenames, decomp_src, output_dir)
+            write_function(function, subFunctionFilenames, decomp_res, decomp_src, output_dir)
         except Exception as e:
             logging.error(e)
             failed_to_extract.add(function.name)
