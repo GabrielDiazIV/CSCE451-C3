@@ -24,8 +24,6 @@ import java.io.*;
 public class C3Main extends GhidraScript {
 
     private HashMap<String,Function> functions;
-	// The path to your python installation
-	// Find using command "which python"
 	// The path to your pyrun installation
 	// Should be in your ghidra_scripts folder
 	final String PYRUN_PATH = System.getProperty("user.home") + "/ghidra_scripts/";
